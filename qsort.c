@@ -9,7 +9,7 @@ void* UpgradedHoarePartition(void* beg, void* end, size_t element_size, int Comp
 
 void Swap(void* p_a, void* p_b, size_t element_size);
 
-void WriteIn(void* p_a, void* p_b, size_t element_size);
+void WriteIn(void* p_a, const void* p_b, size_t element_size);
 
 void* SetPivot(void* p_value, size_t element_size);
 
@@ -133,12 +133,12 @@ void Swap(void* without_type_p_a, void* without_type_p_b, size_t element_size) {
 }
 
 
-void WriteIn(void* without_type_p_a, void* without_type_p_b, size_t element_size) {
+void WriteIn(void* without_type_p_a, const void* without_type_p_b, size_t element_size) {
     assert(without_type_p_a != NULL);
     assert(without_type_p_b != NULL);
 
     char* p_a = (char*)without_type_p_a;
-    char* p_b = (char*)without_type_p_b;
+    const char* p_b = (const char*)without_type_p_b;
     //printf("<%d, %d> - ", *(int*)without_type_p_a, *(int*)without_type_p_b);
 
     if (p_a != p_b) {

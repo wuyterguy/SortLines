@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include "qsort.c"
 
-#define TEXT_FILE_NAME "text.txt"
+#define TEXT_FILE_NAME "onegin.txt"
 #define OUTPUT_FILE_NAME "output.txt"
 #define MAX_LINES_COUNT 1000
 #define MAX_LINE_SIZE 200
@@ -156,8 +156,8 @@ Create_err_t CreateIndexes(Index_t* p_first_letters_index, Index_t* p_last_lette
 int FirstLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
     assert(str1_ptr != NULL); assert(str2_ptr != NULL);
 
-    char* in_str1_pos = *(char**)str1_ptr;
-    char* in_str2_pos = *(char**)str2_ptr;
+    const char* in_str1_pos = *(const char**)str1_ptr;
+    const char* in_str2_pos = *(const char**)str2_ptr;
 
     while ((*in_str1_pos != '\0') || (*in_str2_pos != '\0')) {
         for (; !isalpha(*in_str1_pos) && (*in_str1_pos != '\0'); in_str1_pos++);
@@ -179,8 +179,8 @@ int FirstLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
 int LastLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
     assert(str1_ptr != NULL); assert(str2_ptr != NULL);
 
-    char* in_str1_pos = *(char**)str1_ptr;
-    char* in_str2_pos = *(char**)str2_ptr;
+    const char* in_str1_pos = *(const char**)str1_ptr;
+    const char* in_str2_pos = *(const char**)str2_ptr;
 
     size_t str1_size = 1;   //NOTE there is 1 because just '\0' is line with size 1
     size_t str2_size = 1;
