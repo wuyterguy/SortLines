@@ -1367,7 +1367,7 @@ I'm much afraid that bilberry wine
 won't benefit these guts of mine.''
 ``But tell me, which one was Tatyana?''
 ``She was the one who looked as still
-and melancholy as Svetlana,2
+and melancholy as Svetlana,
 and sat down by the window-sill.''
 ``The one you love's the younger daughter?''
 ``Why not?'' ``I'd choose the other quarter
@@ -4300,6 +4300,8 @@ Godfearing folk will institute
 an inn at each stage of the route.
 But now our roads are bad, the ages
 have gnawed our bridges, and the flea
+aave gnawed our bridges, and the flea
+ave gnawed our bridges, and the flea
 and bedbug that infest the stages
 allow no rest to you or me;
 inns don't exist; but in a freezing

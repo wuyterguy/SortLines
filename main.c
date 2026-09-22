@@ -193,18 +193,17 @@ int FirstLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
 int LastLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
     assert(str1_ptr != NULL); assert(str2_ptr != NULL);
 
-    const char* in_str1_pos = *(const char**)str1_ptr;
-    const char* in_str2_pos = *(const char**)str2_ptr;
+    const char* start_str1_pos = *(const char**)str1_ptr;
+    const char* start_str2_pos = *(const char**)str2_ptr;
+    const char* in_str1_pos = start_str1_pos;
+    const char* in_str2_pos = start_str2_pos;
 
-    size_t str1_size = 1;   //NOTE there is 1 because just '\0' is line with size 1
-    size_t str2_size = 1;
+    for (; *in_str1_pos != '\0'; in_str1_pos++); // TODO remember start
+    for (; *in_str2_pos != '\0'; in_str2_pos++);
 
-    for (; *in_str1_pos != '\0'; str1_size++, in_str1_pos++); // TODO remember start
-    for (; *in_str2_pos != '\0'; str2_size++, in_str2_pos++);
-
-    while ((str1_size > 0) && (str2_size > 0)) {
-        for (; !isalpha(*in_str1_pos) && (str1_size > 0); str1_size--, in_str1_pos--);
-        for (; !isalpha(*in_str2_pos) && (str2_size > 0); str2_size-- , in_str2_pos--);
+    while ((in_str1_pos >= start_str1_pos) && (in_str2_pos >= start_str2_pos)) {
+        for (; !isalpha(*in_str1_pos) && (in_str1_pos > start_str1_pos); in_str1_pos--);
+        for (; !isalpha(*in_str2_pos) && (in_str2_pos > start_str2_pos); in_str2_pos--);
 
         if (tolower(*in_str1_pos) > tolower(*in_str2_pos))
             return 1;
@@ -215,9 +214,9 @@ int LastLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
         in_str2_pos--;
     }
 
-    if (str1_size > 0)
+    if (in_str1_pos >= start_str1_pos)
         return 1;
-    else if (str2_size > 0)
+    else if (in_str2_pos >= start_str2_pos)
         return -1;
     else
         return 0;
