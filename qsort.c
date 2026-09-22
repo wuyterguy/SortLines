@@ -15,7 +15,8 @@ void* SetPivot(void* p_value, size_t element_size);
 
 
 bool MYqsort(void* beg, void* end, size_t element_size,
-             void* Partition(void*, void*, size_t, int (*)(const void*, const void*)), int Compare(const void*, const void*)) {
+             void* Partition(void*, void*, size_t, int (*)(const void*, const void*)),
+             int Compare(const void*, const void*)) {
     assert(beg != NULL);
     assert(end != NULL);
     assert(Partition != NULL);
@@ -116,7 +117,7 @@ void Swap(void* without_type_p_a, void* without_type_p_b, size_t element_size) {
 
     char* p_a = (char*)without_type_p_a;
     char* p_b = (char*)without_type_p_b;
-    char mem;
+    char mem = 0;
     //printf("<%d, %d> - ", *(int*)without_type_p_a, *(int*)without_type_p_b);
 
     if (p_a != p_b) {
