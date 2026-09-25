@@ -4,19 +4,28 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <time.h> // TODO add to readme
 #include "qsort.c"
 
 #define TEXT_FILE_NAME "onegin.txt"
 #define OUTPUT_FILE_NAME "output.txt"
 
-enum {MAIN_NORMAL = 0, MAIN_MEMORY_ERROR = 1, MAIN_OPEN_ERROR = 2, MAIN_READ_ERROR = 3};  // return of main()
-typedef enum {PRINT_NORMAL = 0, PRINT_OPEN_ERROR = 1}     Print_err_t; // return of PrintResult()
-typedef enum {CREATE_NORMAL = 0, CREATE_MEMORY_ERROR = 2} Create_err_t; // return of CreateIndexes()
+enum {MAIN_NORMAL = 0, MAIN_TEXT_ERROR = 1, MAIN_CREATE_ERROR = 2, MAIN_PRINT_ERROR = 3}; // return of main()
+typedef enum {TEXT_NORMAL = 0, TEXT_MEMORY_ERROR = 1,
+              TEXT_OPEN_ERROR = 2, TEXT_READ_ERROR = 3}   Text_err_t;   // field of structure returned by GetIndex()
+typedef enum {INDEX_NORMAL = 0, INDEX_MEMORY_ERROR = 1}   Index_err_t;  // return of GetIndex()
+typedef enum {CREATE_NORMAL = 0, CREATE_MEMORY_ERROR = 1} Create_err_t; // return of CreateIndexes()
+typedef enum {PRINT_NORMAL = 0, PRINT_OPEN_ERROR = 2}     Print_err_t;  // return of PrintResult()
 
-typedef char** Index_t;
+typedef enum {PAIRWISE, CROSS, NESTED} Rhyme_t;
+
+struct Line_pos {char* line_start; char* line_end;};
+
+typedef Line_pos* Index_t;
 
 struct Text_file_t {ssize_t buffer_size; char* buffer; size_t text_size;
-                    int lines_count; size_t longest_line_size; Index_t index;};
+                    int lines_count; size_t longest_line_size; Index_t index;
+                    Text_err_t error_code;};
 
 /**
  * @brief free some fields of Text_file_t structure
@@ -48,7 +57,7 @@ void GetLines(Text_file_t* p_text_file);
  *
  * @param[in, out] p_text_file pointer to Text_file_t structure
  */
-void GetIndex(Text_file_t* p_text_file);
+Index_err_t GetIndex(Text_file_t* p_text_file);
 
 /**
  * @brief print roots depending on the value of n_roots
@@ -57,7 +66,7 @@ void GetIndex(Text_file_t* p_text_file);
  * @param[out] p_last_letters_index  pointer to variable storing last letters index array start
  * @param[in]  p_text_file           pointer to Text_file_t structure
  *
- * @return CREATE_NORMAL or exit with error number
+ * @return CREATE_NORMAL or error number
  */
 Create_err_t CreateIndexes(Index_t* p_first_letters_index, Index_t* p_last_letters_index,
                            Text_file_t* p_text_file);
@@ -90,7 +99,7 @@ int LastLettersAlphabetCmp(const void* str1, const void* str2);
  * @param[in] last_letters_index  last letters index array
  * @param[in] output_file_name    name of file that it print in
  *
- * @return PRINT_NORMAL or exit with error number
+ * @return PRINT_NORMAL or error number
  */
 Print_err_t PrintResult(Text_file_t* p_text_file, Index_t first_letters_index, Index_t last_letters_index,
                  const char* output_file_name);
@@ -103,24 +112,29 @@ Print_err_t PrintResult(Text_file_t* p_text_file, Index_t first_letters_index, I
  */
 void Print_error_message(const char* message, const char* object);
 
+/*Index_t NonsenseGenerator (Index_t rhymed_index, int rhymed lines count,
+                           Rhyme_t rhyme_type, int nonsense_quatrain_count);*/
+
 
 int main() {
     Text_file_t text_file = GetText(TEXT_FILE_NAME);
+    if (text_file.error_code != TEXT_NORMAL)
+        return MAIN_TEXT_ERROR;
 
     Index_t first_letters_index = NULL;
     Index_t last_letters_index = NULL;
     if (CreateIndexes(&first_letters_index, &last_letters_index, &text_file) != CREATE_NORMAL) {
         DestructTextFile(&text_file);
-        return MAIN_MEMORY_ERROR;
+        return MAIN_CREATE_ERROR;
     }
 
-    MYqsort(first_letters_index, first_letters_index + text_file.lines_count - 1, sizeof(char*),
+    MYqsort(first_letters_index, first_letters_index + text_file.lines_count - 1, sizeof(Line_pos),
             UpgradedHoarePartition, FirstLettersAlphabetCmp);
-    qsort(last_letters_index, text_file.lines_count, sizeof(char*), LastLettersAlphabetCmp);
+    qsort(last_letters_index, text_file.lines_count, sizeof(Line_pos), LastLettersAlphabetCmp);
 
     if (PrintResult(&text_file, first_letters_index, last_letters_index, OUTPUT_FILE_NAME) != PRINT_NORMAL) {
         DestructTextFile(&text_file); free(first_letters_index); free(last_letters_index);
-        return MAIN_OPEN_ERROR;
+        return MAIN_PRINT_ERROR;
     }
 
     DestructTextFile(&text_file); free(first_letters_index); free(last_letters_index);
@@ -135,19 +149,22 @@ Text_file_t GetText(const char* filename) {
     stat(filename, &file_stat);
 
     Text_file_t text_file = {.buffer_size = file_stat.st_size, .buffer = NULL, .text_size = 0,
-                                    .lines_count = 0, .longest_line_size = 0, .index = NULL};
+                             .lines_count = 0, .longest_line_size = 0, .index = NULL,
+                             .error_code = TEXT_NORMAL};
 
     text_file.buffer = (char*)calloc(text_file.buffer_size, sizeof(char));
     if (text_file.buffer == NULL) {
         Print_error_message("Failed to allocate memory", "text_file.buffer");
-        exit(MAIN_MEMORY_ERROR);
+        text_file.error_code = TEXT_MEMORY_ERROR;
+        return text_file;
     }
 
     int file_descriptor = open(filename, O_RDONLY);
     if (file_descriptor < 0) {
         Print_error_message("Failed to open with mode O_RDONLY", filename);
         free(text_file.buffer);
-        exit(MAIN_OPEN_ERROR);
+        text_file.error_code = TEXT_OPEN_ERROR;
+        return text_file;
     }
 
     text_file.text_size = read(file_descriptor, text_file.buffer, file_stat.st_size);
@@ -155,14 +172,20 @@ Text_file_t GetText(const char* filename) {
         Print_error_message("reading file error", filename);
         free(text_file.buffer);
         close(file_descriptor);
-        exit(MAIN_READ_ERROR);
+        text_file.error_code = TEXT_READ_ERROR;
+        return text_file;
     }
     text_file.buffer[text_file.text_size] = '\0';
 
     close(file_descriptor);
 
-    GetLines(&text_file); //NOTE fill .longest_line_size, .lines_count; modify buffer with '\0'
-    GetIndex(&text_file); //NOTE fill .index
+    GetLines(&text_file); // NOTE fill .longest_line_size, .lines_count; modify buffer with '\0'
+    if (GetIndex(&text_file) != INDEX_NORMAL) { // NOTE fill .index
+        Print_error_message("reading file error", filename);
+        free(text_file.buffer);
+        text_file.error_code = TEXT_MEMORY_ERROR;
+        return text_file;
+    }
 
     return text_file;
 }
@@ -185,25 +208,30 @@ void GetLines(Text_file_t* p_text_file) {
 }
 
 
-void GetIndex(Text_file_t* p_text_file) {
+Index_err_t GetIndex(Text_file_t* p_text_file) {
     assert(p_text_file != NULL);
 
-    p_text_file->index = (Index_t)calloc(p_text_file->lines_count, sizeof(char*));
+    p_text_file->index = (Index_t)calloc(p_text_file->lines_count, sizeof(Line_pos));
     if (p_text_file->index == NULL) {
         Print_error_message("Failed to allocate memory", "p_text_file->index");
         free(p_text_file->buffer);
-        exit(MAIN_MEMORY_ERROR);
+        return INDEX_MEMORY_ERROR;
     }
 
     Index_t in_index_pos = p_text_file->index;
     char* last_line_start = p_text_file->buffer;
     for (char* i_ptr = p_text_file->buffer + 1; *i_ptr != '\0'; i_ptr++) {
         if ((*i_ptr == '\n') || (*(i_ptr + 1) == '\0')) {   // NOTE (*(i_ptr + 1) == '\0') is there for case when last line don't has \n
-            *in_index_pos++ = last_line_start;
+            in_index_pos->line_start = last_line_start;
+            in_index_pos->line_end = i_ptr;
+
+            in_index_pos++;
             last_line_start = i_ptr + 1;
             *i_ptr = '\0';
         }
     }
+
+    return INDEX_NORMAL;
 }
 
 
@@ -211,30 +239,33 @@ Create_err_t CreateIndexes(Index_t* p_first_letters_index, Index_t* p_last_lette
                            Text_file_t* p_text_file) {
     assert(p_first_letters_index != NULL); assert(p_last_letters_index != NULL);
 
-    *p_first_letters_index = (Index_t)calloc(p_text_file->lines_count, sizeof(char*));
+    *p_first_letters_index = (Index_t)calloc(p_text_file->lines_count, sizeof(Line_pos));
     if (p_first_letters_index == NULL) {
         Print_error_message("Failed to allocate memory", "first_letters_index");
         return CREATE_MEMORY_ERROR;
     }
-    *p_last_letters_index = (Index_t)calloc(p_text_file->lines_count, sizeof(char*));
+    *p_last_letters_index = (Index_t)calloc(p_text_file->lines_count, sizeof(Line_pos));
     if (p_last_letters_index == NULL) {
         Print_error_message("Failed to allocate memory", "last_letters_index");
         free(*p_first_letters_index);
         return CREATE_MEMORY_ERROR;
     }
 
-    WriteIn(*p_first_letters_index, p_text_file->index, p_text_file->lines_count * sizeof(char*));
-    WriteIn(*p_last_letters_index, p_text_file->index, p_text_file->lines_count * sizeof(char*));
+    WriteIn(*p_first_letters_index, p_text_file->index, p_text_file->lines_count * sizeof(Line_pos));
+    WriteIn(*p_last_letters_index, p_text_file->index, p_text_file->lines_count * sizeof(Line_pos));
 
     return CREATE_NORMAL;
 }
 
 
-int FirstLettersAlphabetCmp(const void* str1, const void* str2) {
-    assert(str1 != NULL); assert(str2 != NULL);
+int FirstLettersAlphabetCmp(const void* p_line1, const void* p_line2) {
+    assert(p_line1 != NULL); assert(p_line1 != NULL);
 
-    const char* in_str1_pos = *(const char**)str1;
-    const char* in_str2_pos = *(const char**)str2;
+    const Line_pos* line1_pos = (Line_pos*)p_line1;
+    const Line_pos* line2_pos = (Line_pos*)p_line2;
+
+    const char* in_str1_pos = line1_pos->line_start;
+    const char* in_str2_pos = line2_pos->line_start;
 
     while ((*in_str1_pos != '\0') || (*in_str2_pos != '\0')) {
         for (; !isalpha(*in_str1_pos) && (*in_str1_pos != '\0'); in_str1_pos++);
@@ -253,16 +284,13 @@ int FirstLettersAlphabetCmp(const void* str1, const void* str2) {
 }
 
 
-int LastLettersAlphabetCmp(const void* str1, const void* str2) {
-    assert(str1 != NULL); assert(str2 != NULL);
+int LastLettersAlphabetCmp(const void* p_line1, const void* p_line2) {
+    assert(p_line1 != NULL); assert(p_line2 != NULL);
 
-    const char* start_str1_pos = *(const char**)str1;
-    const char* start_str2_pos = *(const char**)str2;
-    const char* in_str1_pos = start_str1_pos;
-    const char* in_str2_pos = start_str2_pos;
-
-    for (; *in_str1_pos != '\0'; in_str1_pos++);
-    for (; *in_str2_pos != '\0'; in_str2_pos++);
+    const char* start_str1_pos = ((Line_pos*)p_line1)->line_start;
+    const char* start_str2_pos = ((Line_pos*)p_line2)->line_start;
+    const char* in_str1_pos = ((Line_pos*)p_line1)->line_end;
+    const char* in_str2_pos = ((Line_pos*)p_line2)->line_end;
 
     while ((in_str1_pos >= start_str1_pos) && (in_str2_pos >= start_str2_pos)) {
         for (; !isalpha(*in_str1_pos) && (in_str1_pos > start_str1_pos); in_str1_pos--);
@@ -305,15 +333,16 @@ Print_err_t PrintResult(Text_file_t* p_text_file, Index_t first_letters_index, I
     }
 
     for(int i = 0; i < p_text_file->lines_count; i++)
-        printf("%*s\t%*s\t%*s\n", -p_text_file->longest_line_size, first_letters_index[i],
-                                  -p_text_file->longest_line_size, last_letters_index[i],
-                                  -p_text_file->longest_line_size, p_text_file->index[i]);
+        printf("%*s\t%*s\t%*s\n", -p_text_file->longest_line_size, first_letters_index[i].line_start,
+                                  -p_text_file->longest_line_size, last_letters_index[i].line_start,
+                                  -p_text_file->longest_line_size, p_text_file->index[i].line_start);
     fflush(stdout);
 
     dup2(stdout_descriptor, STDOUT_FILENO);
     close(output_file_descriptor);
     return PRINT_NORMAL;
 }
+
 
 void DestructTextFile(Text_file_t* p_text_file) {
     assert(p_text_file != NULL);
@@ -322,8 +351,40 @@ void DestructTextFile(Text_file_t* p_text_file) {
     free(p_text_file->index);
 }
 
+
 void Print_error_message(const char* message, const char* object) {
     assert(message != NULL); assert(object != NULL);
 
     fprintf(stderr, "%s(): %s - %s, line %d\n", __func__, message, object, __LINE__);
 }
+
+
+/*Index_t NonsenseGenerator (Index_t rhymed_index, int rhymed lines count,
+                           Rhyme_t rhyme_type, int nonsense_quatrain_count) {
+    assert(rhymed_index != NULL);
+
+    srand(time(NULL));
+
+    Index_t nonsense = (Index_t)calloc(nonsense_quatrain_count * 4, sizeof(char*));
+
+    for (Index_t i_quatrain_ptr = nonsense; (i_quatrain_ptr - nonsense) < nonsense_quatrain_count * 4;
+         i_quatrain_ptr += 4) {
+        char* line1 = RandomEvenNumberedLine(rhymed lines count) //(((rand() % rhymed lines count) >> 1) << 1);
+        char* line2 = RandomEvenNumberedLine(rhymed lines count) //(((rand() % rhymed lines count) >> 1) << 1);
+
+        switch(rhyme_type) {
+            case PAIRWISE:
+                i_quatrain_ptr[0] = line1
+                i_quatrain_ptr[1] = line1 + 1  // TODO MakeQuatrain()
+                i_quatrain_ptr[2] = line2
+                i_quatrain_ptr[3] = line2 + 1
+                break;
+            case CROSS:
+                MakeQuatrain(line1)
+                break;
+            case NESTED:
+
+                break;
+        }
+    }
+}*/
