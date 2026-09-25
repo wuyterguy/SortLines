@@ -4,20 +4,29 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
-#include <time.h> // TODO add to readme
+#include <time.h>
 #include "qsort.c"
 
 #define TEXT_FILE_NAME "onegin.txt"
 #define OUTPUT_FILE_NAME "output.txt"
 
-enum {MAIN_NORMAL = 0, MAIN_TEXT_ERROR = 1, MAIN_CREATE_ERROR = 2, MAIN_PRINT_ERROR = 3}; // return of main()
+#define DEFAULT_NONSENSE_QUATRAIN_COUNT 2
+
+enum {MAIN_NORMAL = 0, MAIN_TEXT_ERROR = 1, MAIN_CREATE_ERROR = 2,
+      MAIN_PRINT_ERROR = 3, MAIN_NONSENSE_ERROR = 4};                         // return of main()
 typedef enum {TEXT_NORMAL = 0, TEXT_MEMORY_ERROR = 1,
-              TEXT_OPEN_ERROR = 2, TEXT_READ_ERROR = 3}   Text_err_t;   // field of structure returned by GetIndex()
-typedef enum {INDEX_NORMAL = 0, INDEX_MEMORY_ERROR = 1}   Index_err_t;  // return of GetIndex()
-typedef enum {CREATE_NORMAL = 0, CREATE_MEMORY_ERROR = 1} Create_err_t; // return of CreateIndexes()
-typedef enum {PRINT_NORMAL = 0, PRINT_OPEN_ERROR = 2}     Print_err_t;  // return of PrintResult()
+              TEXT_OPEN_ERROR = 2, TEXT_READ_ERROR = 3}       Text_err_t;     // field of structure returned by GetIndex()
+typedef enum {INDEX_NORMAL = 0, INDEX_MEMORY_ERROR = 1}       Index_err_t;    // return of GetIndex()
+typedef enum {CREATE_NORMAL = 0, CREATE_MEMORY_ERROR = 1}     Create_err_t;   // return of CreateIndexes()
+typedef enum {PRINT_NORMAL = 0, PRINT_OPEN_ERROR = 2}         Print_err_t;    // return of PrintResult()
+typedef enum {NONSENSE_NORMAL = 0, NONSENSE_MEMORY_ERROR = 2} Nonsense_err_t; // return of PrintNonsense()
 
 typedef enum {PAIRWISE, CROSS, NESTED} Rhyme_t;
+
+struct Flags {
+    unsigned int nonsense_flag : 1;
+    int nonsense_flag_arg = DEFAULT_NONSENSE_QUATRAIN_COUNT;
+};
 
 struct Line_pos {char* line_start; char* line_end;};
 
@@ -33,6 +42,25 @@ struct Text_file_t {ssize_t buffer_size; char* buffer; size_t text_size;
  * @param[in] p_text_file pointer to Text_file_t structure
  */
 void DestructTextFile (Text_file_t* p_text_file);
+
+/**
+ * @brief print error message
+ *
+ * @param[in] message error message
+ * @param[in] object  object of error
+ */
+#define Print_error_message(message, object)                                         \
+    fprintf(stderr, "%s(): %s - %s, line %d\n", __func__, message, object, __LINE__);
+
+
+/**
+ * @brief get command line flags with their arguments from command line arguments
+ *
+ * @param[in]  argc argc from command line
+ * @param[in]  agrv argv from command line
+ * @param[out] command_line_flags pointer to stract with flags
+ */
+void HandleArg(int argc, char* argv[], Flags* command_line_flags);
 
 /**
  * @brief get Text_file_t structure for file with text
@@ -105,18 +133,49 @@ Print_err_t PrintResult(Text_file_t* p_text_file, Index_t first_letters_index, I
                  const char* output_file_name);
 
 /**
- * @brief print error message
+ * @brief fill quatrain at specified addres
  *
- * @param[in] message error message
- * @param[in] object  object of error
+ * @param[out] quatrain_ptr   pointer to start of quatrain
+ * @param[in]  line_index_1st first line of quatrain
+ * @param[in]  line_index_2nd second line of quatrain
+ * @param[in]  line_index_3rd third line of quatrain
+ * @param[in]  line_index_4th fourth line of quatrain
  */
-void Print_error_message(const char* message, const char* object);
+void MakeQuatrain(Index_t rhymed_index, char** quatrain_ptr,
+                  size_t line_index_1st, size_t line_index_2nd,
+                  size_t line_index_3rd, size_t line_index_4th);
 
-/*Index_t NonsenseGenerator (Index_t rhymed_index, int rhymed lines count,
-                           Rhyme_t rhyme_type, int nonsense_quatrain_count);*/
+/**
+ * @brief random generating of rhymed nonsense
+ *
+ * @param[in] rhymed_index            rhymed index array
+ * @param[in] rhymed_lines_count      count of lines in rhymed index array
+ * @param[in] rhyme_type              type of rhyme (PAIRWISE, CROSS, NESTED)
+ * @param[in] nonsense_quatrain_count count of being printed quatrain of nonsense
+ *
+ * @return generated array of lines
+ */
+char** NonsenseGenerator(Index_t rhymed_index, int rhymed_lines_count,
+                           Rhyme_t rhyme_type, int nonsense_quatrain_count);
+
+/**
+ * @brief print random generated rhymed nonsense
+ *
+ * @param[in] rhymed_index            rhymed index array
+ * @param[in] rhymed_lines_count      count of lines in rhymed index array
+ * @param[in] rhyme_type              type of rhyme (PAIRWISE, CROSS, NESTED)
+ * @param[in] nonsense_quatrain_count count of being printed quatrain of nonsense
+ *
+ * @return NONSENSE_NORMAL or error number
+ */
+Nonsense_err_t PrintNonsense(Index_t rhymed_index, int rhymed_lines_count,
+                             Rhyme_t rhyme_type, int nonsense_quatrain_count);
 
 
-int main() {
+int main(int argc, char* argv[]) {
+    Flags command_line_flags = {};
+    HandleArg(argc, argv, &command_line_flags);
+
     Text_file_t text_file = GetText(TEXT_FILE_NAME);
     if (text_file.error_code != TEXT_NORMAL)
         return MAIN_TEXT_ERROR;
@@ -137,8 +196,41 @@ int main() {
         return MAIN_PRINT_ERROR;
     }
 
+    if (command_line_flags.nonsense_flag) {
+        if (PrintNonsense(last_letters_index, text_file.lines_count,
+                          CROSS, command_line_flags.nonsense_flag_arg) != NONSENSE_NORMAL) {
+            DestructTextFile(&text_file); free(first_letters_index); free(last_letters_index);
+            return MAIN_NONSENSE_ERROR;
+        }
+    }
+
     DestructTextFile(&text_file); free(first_letters_index); free(last_letters_index);
     return MAIN_NORMAL;
+}
+
+
+void HandleArg(int argc, char* argv[], Flags* command_line_flags) {
+    assert(argv != NULL); assert(command_line_flags != NULL);
+
+    for (int arg_index = 1; arg_index < argc; arg_index++) {
+        const char* arg_position = argv[arg_index];
+        if (*arg_position++ != '-')
+            continue;
+
+        while (isalpha(*arg_position)) {
+            switch (*arg_position) {
+                case 'n':
+                    command_line_flags->nonsense_flag = 1;
+                    if ((sscanf(++arg_position, "%d", &(command_line_flags->nonsense_flag_arg)) != 1) && (arg_index + 1) < argc)
+                        sscanf(argv[arg_index + 1], "%d", &(command_line_flags->nonsense_flag_arg));
+                    if (command_line_flags->nonsense_flag_arg < 0)
+                        command_line_flags->nonsense_flag_arg = DEFAULT_NONSENSE_QUATRAIN_COUNT;
+                default: break;
+            }
+
+            arg_position++;
+        }
+    }
 }
 
 
@@ -232,6 +324,14 @@ Index_err_t GetIndex(Text_file_t* p_text_file) {
     }
 
     return INDEX_NORMAL;
+}
+
+
+void DestructTextFile(Text_file_t* p_text_file) {
+    assert(p_text_file != NULL);
+
+    free(p_text_file->buffer);
+    free(p_text_file->index);
 }
 
 
@@ -344,47 +444,72 @@ Print_err_t PrintResult(Text_file_t* p_text_file, Index_t first_letters_index, I
 }
 
 
-void DestructTextFile(Text_file_t* p_text_file) {
-    assert(p_text_file != NULL);
-
-    free(p_text_file->buffer);
-    free(p_text_file->index);
+void MakeQuatrain(Index_t rhymed_index, char** quatrain_ptr,
+                  size_t line_index_1st, size_t line_index_2nd,
+                  size_t line_index_3rd, size_t line_index_4th) {
+    quatrain_ptr[0] = rhymed_index[line_index_1st].line_start;
+    quatrain_ptr[1] = rhymed_index[line_index_2nd].line_start;
+    quatrain_ptr[2] = rhymed_index[line_index_3rd].line_start;
+    quatrain_ptr[3] = rhymed_index[line_index_4th].line_start;
 }
 
 
-void Print_error_message(const char* message, const char* object) {
-    assert(message != NULL); assert(object != NULL);
+#define RandomEvenNumberedLineIndex(rhymed_lines_count) (((rand() % rhymed_lines_count) >> 1) << 1)
 
-    fprintf(stderr, "%s(): %s - %s, line %d\n", __func__, message, object, __LINE__);
-}
-
-
-/*Index_t NonsenseGenerator (Index_t rhymed_index, int rhymed lines count,
-                           Rhyme_t rhyme_type, int nonsense_quatrain_count) {
+char** NonsenseGenerator(Index_t rhymed_index, int rhymed_lines_count,
+                         Rhyme_t rhyme_type, int nonsense_quatrain_count) {
     assert(rhymed_index != NULL);
 
     srand(time(NULL));
 
-    Index_t nonsense = (Index_t)calloc(nonsense_quatrain_count * 4, sizeof(char*));
+    char** nonsense = (char**)calloc(nonsense_quatrain_count * 4, sizeof(char*));
+    if (nonsense == NULL) {
+        Print_error_message("Failed to allocate memory", "nonsense");
+        return NULL;
+    }
+    size_t line1_index = 0;
+    size_t line2_index = 0;
 
-    for (Index_t i_quatrain_ptr = nonsense; (i_quatrain_ptr - nonsense) < nonsense_quatrain_count * 4;
+    for (char** i_quatrain_ptr = nonsense; (i_quatrain_ptr - nonsense) < nonsense_quatrain_count * 4;
          i_quatrain_ptr += 4) {
-        char* line1 = RandomEvenNumberedLine(rhymed lines count) //(((rand() % rhymed lines count) >> 1) << 1);
-        char* line2 = RandomEvenNumberedLine(rhymed lines count) //(((rand() % rhymed lines count) >> 1) << 1);
+        line1_index = RandomEvenNumberedLineIndex(rhymed_lines_count);
+        line2_index = RandomEvenNumberedLineIndex(rhymed_lines_count);
 
         switch(rhyme_type) {
             case PAIRWISE:
-                i_quatrain_ptr[0] = line1
-                i_quatrain_ptr[1] = line1 + 1  // TODO MakeQuatrain()
-                i_quatrain_ptr[2] = line2
-                i_quatrain_ptr[3] = line2 + 1
+                MakeQuatrain(rhymed_index, i_quatrain_ptr,
+                             line1_index, line1_index + 1, line2_index, line2_index + 1);
                 break;
             case CROSS:
-                MakeQuatrain(line1)
+                MakeQuatrain(rhymed_index, i_quatrain_ptr,
+                             line1_index, line2_index, line1_index + 1, line2_index + 1);
                 break;
             case NESTED:
-
+                MakeQuatrain(rhymed_index, i_quatrain_ptr,
+                             line1_index, line2_index, line2_index + 1, line1_index + 1);
+                break;
+            default:
                 break;
         }
     }
-}*/
+
+    return nonsense;
+}
+
+
+Nonsense_err_t PrintNonsense(Index_t rhymed_index, int rhymed_lines_count,
+                             Rhyme_t rhyme_type, int nonsense_quatrain_count) {
+    char** nonsense = NonsenseGenerator(rhymed_index, rhymed_lines_count,
+                                        rhyme_type, nonsense_quatrain_count);
+    if (nonsense == NULL)
+        return NONSENSE_MEMORY_ERROR;
+
+    for (int quatrain_number = 0; quatrain_number < nonsense_quatrain_count; quatrain_number++) {
+        for (int line_number = 0; line_number < 4; line_number++)
+            printf("%s\n", nonsense[quatrain_number * 4 + line_number]);
+        printf("\n");
+    }
+
+    free(nonsense);
+    return NONSENSE_NORMAL;
+}

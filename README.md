@@ -30,6 +30,7 @@ This program is designed to sort lines from an input file in two ways: alphabeti
 * User can select the input and output files
 * The output is displayed in three left-aligned columns. The distance between columns is calculated based on the longest line.
 * The sort function accepts a partition function as a parameter.
+* The program can print random generated rhymed text to console basing on sorted using the second way lines
 
 ---
 
@@ -54,6 +55,8 @@ User has to compile "___main.c___" by __c++__ compiler and run resulting file to
 __program options__
 * Change the value of the macro ___TEXT_FILE_NAME___ to select the input file.
 * Change the value of the macro ___OUTPUT_FILE_NAME___ to select the output file.
+* Use command line flag ___-n___ with parameter ___n_arg___
+to switch on printing of ___n_arg___ random generated rhymed quatrain of nonsense to console.
 
 ---
 
@@ -76,6 +79,8 @@ for getting information about a file (_stat_)
 for work with files (_open_, etc.)
 * __ctype.h__
 for work with symbols (_isalpha_, etc.)
+* __time.h__
+for random generating (_time_)
 
 </span>
 
