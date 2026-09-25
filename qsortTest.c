@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <assert.h>  //TODO const
+#include <assert.h>
 
 #define ARROW_SIZE 20
 #define MAX_NUMBER 50

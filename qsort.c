@@ -1,15 +1,19 @@
 bool MYqsort(void* beg, void* end, size_t element_size,
-             void* Partition(void*, void*, size_t, int (*)(void*, void*)), int Compare(const void*, const void*));
+             void* Partition(void*, void*, size_t, int (*)(void*, void*)),
+             int Compare(const void*, const void*));
 
-void* LomutoPartition(void* beg, void* end, size_t element_size, int Compare(const void*, const void*));
+void* LomutoPartition(void* beg, void* end, size_t element_size,
+                      int Compare(const void*, const void*));
 
-void* HoarePartition(void* beg, void* end, size_t element_size, int Compare(const void*, const void*));
+void* HoarePartition(void* beg, void* end, size_t element_size,
+                     int Compare(const void*, const void*));
 
-void* UpgradedHoarePartition(void* beg, void* end, size_t element_size, int Compare(const void*, const void*));
+void* UpgradedHoarePartition(void* beg, void* end, size_t element_size,
+                             int Compare(const void*, const void*));
 
-void Swap(void* p_a, void* p_b, size_t element_size);
+void Swap(void* p_a, void* p_b, size_t element_size); // TODO typedef for char as 1-byte data type
 
-void WriteIn(void* p_a, const void* p_b, size_t element_size);
+void WriteIn(void* p_into, const void* p_from, size_t element_size);
 
 void* SetPivot(void* p_value, size_t element_size);
 
@@ -31,7 +35,8 @@ bool MYqsort(void* beg, void* end, size_t element_size,
 }
 
 
-void* LomutoPartition(void* beg, void* end, size_t element_size, int Compare(const void*, const void*)) {
+void* LomutoPartition(void* beg, void* end, size_t element_size,
+                      int Compare(const void*, const void*)) {
     assert(beg != NULL);
     assert(end != NULL);
 
@@ -52,7 +57,8 @@ void* LomutoPartition(void* beg, void* end, size_t element_size, int Compare(con
 }
 
 
-void* HoarePartition(void* beg, void* end, size_t element_size, int Compare(const void*, const void*)) {
+void* HoarePartition(void* beg, void* end, size_t element_size,
+                     int Compare(const void*, const void*)) {
     assert(beg != NULL);
     assert(end != NULL);
 
@@ -77,7 +83,8 @@ void* HoarePartition(void* beg, void* end, size_t element_size, int Compare(cons
 }
 
 
-void* UpgradedHoarePartition(void* beg, void* end, size_t element_size, int Compare(const void*, const void*)) {
+void* UpgradedHoarePartition(void* beg, void* end, size_t element_size,
+                             int Compare(const void*, const void*)) {
     assert(beg != NULL);
     assert(end != NULL);
 
@@ -134,23 +141,23 @@ void Swap(void* without_type_p_a, void* without_type_p_b, size_t element_size) {
 }
 
 
-void WriteIn(void* without_type_p_a, const void* without_type_p_b, size_t element_size) {
-    assert(without_type_p_a != NULL);
-    assert(without_type_p_b != NULL);
+void WriteIn(void* without_type_p_into, const void* without_type_p_from, size_t element_size) {
+    assert(without_type_p_into != NULL);
+    assert(without_type_p_from != NULL);
 
-    char* p_a = (char*)without_type_p_a;
-    const char* p_b = (const char*)without_type_p_b;
+    char* p_into = (char*)without_type_p_into;
+    const char* p_from = (const char*)without_type_p_from;
     //printf("<%d, %d> - ", *(int*)without_type_p_a, *(int*)without_type_p_b);
 
-    if (p_a != p_b) {
+    if (p_into != p_from) {
         for (size_t i = 0; i < element_size; i++) {
-            *p_a = *p_b;
+            *p_into = *p_from;
 
-            p_a++;
-            p_b++;
+            p_into++;
+            p_from++;
         }
     }
-    //printf("<%d, %d>\n", *(int*)without_type_p_a, *(int*)without_type_p_b);
+    //printf("<%d, %d>\n", *(int*)without_type_p_into, *(int*)without_type_p_from);
 }
 
 

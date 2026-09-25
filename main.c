@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -9,10 +8,8 @@
 
 #define TEXT_FILE_NAME "onegin.txt"
 #define OUTPUT_FILE_NAME "output.txt"
-#define MAX_LINES_COUNT 1000
-#define MAX_LINE_SIZE
 
-enum {MAIN_NORMAL = 0, MAIN_MEMORY_ERROR = 1, MAIN_OPEN_ERROR = 2, MAIN_READ_ERROR = 3};
+enum {MAIN_NORMAL = 0, MAIN_MEMORY_ERROR = 1, MAIN_OPEN_ERROR = 2, MAIN_READ_ERROR = 3};  // return of main()
 typedef enum {PRINT_NORMAL = 0, PRINT_OPEN_ERROR = 1}     Print_err_t; // return of PrintResult()
 typedef enum {CREATE_NORMAL = 0, CREATE_MEMORY_ERROR = 2} Create_err_t; // return of CreateIndexes()
 
@@ -21,24 +18,89 @@ typedef char** Index_t;
 struct Text_file_t {ssize_t buffer_size; char* buffer; size_t text_size;
                     int lines_count; size_t longest_line_size; Index_t index;};
 
+/**
+ * @brief free some fields of Text_file_t structure
+ *
+ * @param[in] p_text_file pointer to Text_file_t structure
+ */
 void DestructTextFile (Text_file_t* p_text_file);
 
+/**
+ * @brief get Text_file_t structure for file with text
+ *
+ * @param[in] filename name of the file
+ *
+ * @return Text_file_t structure
+ */
 Text_file_t GetText(const char* filename);
 
-Index_t GetLines(Text_file_t* p_text_file);
 
-Index_t GetIndex(Text_file_t* p_text_file);
+/**
+ * @brief calculate and fill Text_file_t structure with .longest_line_size, .lines_count
+ *        and modify buffer with '\0'
+ *
+ * @param[in, out] p_text_file pointer to Text_file_t structure
+ */
+void GetLines(Text_file_t* p_text_file);
 
-Create_err_t CreateIndexes(Index_t* first_letters_index, Index_t* last_letters_index,
-                           size_t lines_count);
+/**
+ * @brief fill Text_file_t structure with .index
+ *
+ * @param[in, out] p_text_file pointer to Text_file_t structure
+ */
+void GetIndex(Text_file_t* p_text_file);
 
-int FirstLettersAlphabetCmp(const void* str_ptr1, const void* str_ptr2);
+/**
+ * @brief print roots depending on the value of n_roots
+ *
+ * @param[out] p_first_letters_index pointer to variable storing first letters index array start
+ * @param[out] p_last_letters_index  pointer to variable storing last letters index array start
+ * @param[in]  p_text_file           pointer to Text_file_t structure
+ *
+ * @return CREATE_NORMAL or exit with error number
+ */
+Create_err_t CreateIndexes(Index_t* p_first_letters_index, Index_t* p_last_letters_index,
+                           Text_file_t* p_text_file);
 
-int LastLettersAlphabetCmp(const void* str_ptr1, const void* str_ptr2);
+/**
+ * @brief alphabetically comparing from the first letter
+ *
+ * @param[in] str1 first being compared line
+ * @param[in] str2 first being compared line
+ *
+ * @return 1 if str1 > str2, -1 if str1 < str2, 0 if str1 = str2
+ */
+int FirstLettersAlphabetCmp(const void* str1, const void* str2);
 
+/**
+ * @brief alphabetically comparing from the last letter
+ *
+ * @param[in] str1 first being compared line
+ * @param[in] str2 first being compared line
+ *
+ * @return 1 if str1 > str2, -1 if str1 < str2, 0 if str1 = str2
+ */
+int LastLettersAlphabetCmp(const void* str1, const void* str2);
+
+/**
+ * @brief print result of sorting in three columns
+ *
+ * @param[in] p_text_file         pointer to Text_file_t structure
+ * @param[in] first_letters_index first letters index array
+ * @param[in] last_letters_index  last letters index array
+ * @param[in] output_file_name    name of file that it print in
+ *
+ * @return PRINT_NORMAL or exit with error number
+ */
 Print_err_t PrintResult(Text_file_t* p_text_file, Index_t first_letters_index, Index_t last_letters_index,
                  const char* output_file_name);
 
+/**
+ * @brief print error message
+ *
+ * @param[in] message error message
+ * @param[in] object  object of error
+ */
 void Print_error_message(const char* message, const char* object);
 
 
@@ -47,12 +109,10 @@ int main() {
 
     Index_t first_letters_index = NULL;
     Index_t last_letters_index = NULL;
-    if (CreateIndexes(&first_letters_index, &last_letters_index, text_file.lines_count) != CREATE_NORMAL) {
+    if (CreateIndexes(&first_letters_index, &last_letters_index, &text_file) != CREATE_NORMAL) {
         DestructTextFile(&text_file);
         return MAIN_MEMORY_ERROR;
     }
-    WriteIn(first_letters_index, text_file.index, text_file.lines_count * sizeof(char*));
-    WriteIn(last_letters_index, text_file.index, text_file.lines_count * sizeof(char*));
 
     MYqsort(first_letters_index, first_letters_index + text_file.lines_count - 1, sizeof(char*),
             UpgradedHoarePartition, FirstLettersAlphabetCmp);
@@ -101,20 +161,20 @@ Text_file_t GetText(const char* filename) {
 
     close(file_descriptor);
 
-    GetLines(&text_file); //NOTE fill .longest_line_size, .lines_count; modificate buffer with '\0'
+    GetLines(&text_file); //NOTE fill .longest_line_size, .lines_count; modify buffer with '\0'
     GetIndex(&text_file); //NOTE fill .index
 
     return text_file;
 }
 
 
-Index_t GetLines(Text_file_t* p_text_file) {
+void GetLines(Text_file_t* p_text_file) {
     assert(p_text_file != NULL);
 
     size_t line_size = 0;
     for (char* i_ptr = p_text_file->buffer; *i_ptr != '\0'; i_ptr++) {
         line_size++;
-        if ((*i_ptr == '\n') || (*(i_ptr + 1) == '\0')) {       // NOTE (*i_ptr == '\0') is there for case when last line don't has \n
+        if ((*i_ptr == '\n') || (*(i_ptr + 1) == '\0')) {       // NOTE (*(i_ptr + 1) == '\0') is there for case when last line don't has \n
             if (line_size > p_text_file->longest_line_size)
                 p_text_file->longest_line_size = line_size;
             line_size = 0;
@@ -125,7 +185,7 @@ Index_t GetLines(Text_file_t* p_text_file) {
 }
 
 
-Index_t GetIndex(Text_file_t* p_text_file) {
+void GetIndex(Text_file_t* p_text_file) {
     assert(p_text_file != NULL);
 
     p_text_file->index = (Index_t)calloc(p_text_file->lines_count, sizeof(char*));
@@ -138,7 +198,7 @@ Index_t GetIndex(Text_file_t* p_text_file) {
     Index_t in_index_pos = p_text_file->index;
     char* last_line_start = p_text_file->buffer;
     for (char* i_ptr = p_text_file->buffer + 1; *i_ptr != '\0'; i_ptr++) {
-        if ((*i_ptr == '\n') || (*(i_ptr + 1) == '\0')) {   // NOTE (*i_ptr == '\0') is there for case when last line don't has \n
+        if ((*i_ptr == '\n') || (*(i_ptr + 1) == '\0')) {   // NOTE (*(i_ptr + 1) == '\0') is there for case when last line don't has \n
             *in_index_pos++ = last_line_start;
             last_line_start = i_ptr + 1;
             *i_ptr = '\0';
@@ -148,30 +208,33 @@ Index_t GetIndex(Text_file_t* p_text_file) {
 
 
 Create_err_t CreateIndexes(Index_t* p_first_letters_index, Index_t* p_last_letters_index,
-                           size_t lines_count) {
+                           Text_file_t* p_text_file) {
     assert(p_first_letters_index != NULL); assert(p_last_letters_index != NULL);
 
-    *p_first_letters_index = (Index_t)calloc(lines_count, sizeof(char*));
+    *p_first_letters_index = (Index_t)calloc(p_text_file->lines_count, sizeof(char*));
     if (p_first_letters_index == NULL) {
         Print_error_message("Failed to allocate memory", "first_letters_index");
         return CREATE_MEMORY_ERROR;
     }
-    *p_last_letters_index = (Index_t)calloc(lines_count, sizeof(char*));
+    *p_last_letters_index = (Index_t)calloc(p_text_file->lines_count, sizeof(char*));
     if (p_last_letters_index == NULL) {
         Print_error_message("Failed to allocate memory", "last_letters_index");
         free(*p_first_letters_index);
         return CREATE_MEMORY_ERROR;
     }
 
+    WriteIn(*p_first_letters_index, p_text_file->index, p_text_file->lines_count * sizeof(char*));
+    WriteIn(*p_last_letters_index, p_text_file->index, p_text_file->lines_count * sizeof(char*));
+
     return CREATE_NORMAL;
 }
 
 
-int FirstLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
-    assert(str1_ptr != NULL); assert(str2_ptr != NULL);
+int FirstLettersAlphabetCmp(const void* str1, const void* str2) {
+    assert(str1 != NULL); assert(str2 != NULL);
 
-    const char* in_str1_pos = *(const char**)str1_ptr;
-    const char* in_str2_pos = *(const char**)str2_ptr;
+    const char* in_str1_pos = *(const char**)str1;
+    const char* in_str2_pos = *(const char**)str2;
 
     while ((*in_str1_pos != '\0') || (*in_str2_pos != '\0')) {
         for (; !isalpha(*in_str1_pos) && (*in_str1_pos != '\0'); in_str1_pos++);
@@ -190,15 +253,15 @@ int FirstLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
 }
 
 
-int LastLettersAlphabetCmp(const void* str1_ptr, const void* str2_ptr) {
-    assert(str1_ptr != NULL); assert(str2_ptr != NULL);
+int LastLettersAlphabetCmp(const void* str1, const void* str2) {
+    assert(str1 != NULL); assert(str2 != NULL);
 
-    const char* start_str1_pos = *(const char**)str1_ptr;
-    const char* start_str2_pos = *(const char**)str2_ptr;
+    const char* start_str1_pos = *(const char**)str1;
+    const char* start_str2_pos = *(const char**)str2;
     const char* in_str1_pos = start_str1_pos;
     const char* in_str2_pos = start_str2_pos;
 
-    for (; *in_str1_pos != '\0'; in_str1_pos++); // TODO remember start
+    for (; *in_str1_pos != '\0'; in_str1_pos++);
     for (; *in_str2_pos != '\0'; in_str2_pos++);
 
     while ((in_str1_pos >= start_str1_pos) && (in_str2_pos >= start_str2_pos)) {
